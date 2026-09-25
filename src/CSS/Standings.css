@@ -8,12 +8,48 @@
     flex-direction: column;
 }
 
-.standing-title {
+.standing-title-container {
     width: 100%;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 10px 10px;
+}
+
+.standing-title {
     text-align: left;
-    padding: 15px 10px;
-    font-size: 1.8rem; 
+    font-size: 1.8rem;
     font-weight: bold;
+    margin: 0;
+}
+
+.standing-title-container>select {
+    color: white;
+    font-size: 1.8rem;
+    font-weight: bold;
+    margin-right: 15px;
+    background-color: black;
+    border: none;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+}
+
+.standing-title-container>select:hover {
+    border-bottom-color: #e10600;
+    /* F1 Red */
+}
+
+.standing-title-container>select:focus {
+    background-color: #202020;
+    outline: none;
+    border-bottom-color: #e10600;
+    border-radius: 8px 8px 0 0;
+}
+
+.standing-title-container>select option {
+    background-color: #202020;
+    color: white;
+    font-size: 1rem;
 }
 
 .standing-container {
@@ -67,17 +103,17 @@ td {
     cursor: pointer;
 }
 
-tbody > tr {
+tbody>tr {
     border-bottom: #464646 0.5px solid;
     transition: all 0.15s ease;
 }
 
-tbody > tr:hover {
+tbody>tr:hover {
     background-color: #464646;
 }
 
-tbody > tr:last-child { 
-    border-bottom: none; 
+tbody>tr:last-child {
+    border-bottom: none;
 }
 
 .table-title {
@@ -118,7 +154,8 @@ tbody > tr:last-child {
     font-size: 0.85rem;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
     min-width: 180px;
-    backdrop-filter: blur(4px); /* 增加一點模糊效果讓它更有質感 */
+    backdrop-filter: blur(4px);
+    /* 增加一點模糊效果讓它更有質感 */
 }
 
 /* Tooltip Header */
@@ -168,7 +205,7 @@ tbody > tr:last-child {
     height: 8px;
     border-radius: 50%;
     margin-right: 8px;
-    box-shadow: 0 0 2px rgba(0,0,0,0.5);
+    box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
 }
 
 .tooltip-driver-name {
@@ -177,7 +214,8 @@ tbody > tr:last-child {
 
 .tooltip-points {
     margin-left: 15px;
-    font-variant-numeric: tabular-nums; /* 讓數字等寬對齊 */
+    font-variant-numeric: tabular-nums;
+    /* 讓數字等寬對齊 */
     color: #ddd;
 }
 
