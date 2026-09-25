@@ -21,7 +21,7 @@ type PointsCustomTooltipProps = {
 
 function PointsEvolutionTooltip({ active, payload, label, schedule }: PointsCustomTooltipProps) {
   if (active && payload && payload.length) {
-    
+
     // Grand Prix Name
     const currentRace = schedule.find(race => parseInt(String(race.round)) === parseInt(String(label) || '0'));
     const raceName = currentRace ? currentRace.raceName : `Round ${label}`;
@@ -43,8 +43,8 @@ function PointsEvolutionTooltip({ active, payload, label, schedule }: PointsCust
           {sortedPayload.map((entry: any) => (
             <div key={entry.name} className="tooltip-item">
               <div className="tooltip-driver-info">
-                <span 
-                  className="tooltip-color-dot" 
+                <span
+                  className="tooltip-color-dot"
                   style={{ backgroundColor: entry.color }}
                 ></span>
                 <span className="tooltip-driver-name">{entry.name}</span>
@@ -60,7 +60,7 @@ function PointsEvolutionTooltip({ active, payload, label, schedule }: PointsCust
   return null;
 }
 
-function PointsEvolution({type, year, schedule, standing}: Props) {
+function PointsEvolution({ type, year, schedule, standing }: Props) {
 
   const [evolutionData, setEvolutionData] = useState<pointsEvolution_type[]>([]);
   const [dataKeys, setDataKeys] = useState<string[]>([]);
@@ -71,7 +71,7 @@ function PointsEvolution({type, year, schedule, standing}: Props) {
 
     const fetchData = async () => {
       let data: pointsEvolution_type[] = [];
-      
+
       if (type === 'driver') {
         data = await getDriverPointsEvolution(year);
       } else {
@@ -81,8 +81,8 @@ function PointsEvolution({type, year, schedule, standing}: Props) {
       setEvolutionData(data);
       console.log(`${type} Points Evolution Data:`, data);
 
-      if (data.length > 0){
-        const keys = Object.keys(data[data.length-1])
+      if (data.length > 0) {
+        const keys = Object.keys(data[data.length - 1])
         // 過濾掉非參賽者資料的 key
         const validKeys = keys.filter((key) => key !== 'round' && key !== 'name');
         setDataKeys(validKeys)
@@ -92,72 +92,77 @@ function PointsEvolution({type, year, schedule, standing}: Props) {
 
     fetchData();
   }, [year, type])
-  
-    return (
-      <div className="standing-chart-container">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={evolutionData} margin={{ top: 10, right: 20, bottom: 20, left: 20 }}>
 
-            <CartesianGrid strokeDasharray="3 3" stroke="#444" opacity={0.9} />
-            
-            <XAxis 
-              dataKey="round"
-              label={{ value: 'Round', fontWeight: 'bold', position: 'insideBottom', offset: -10, fill: '#fff' }}
-              stroke="white"
-            />
-            <YAxis
-              domain={[0, 'max']} 
-              label={{ value: 'Points', fontWeight: 'bold', angle: -90, position: 'insideLeft', fill: '#fff' }}
-              stroke="white"
-            />
-            <Tooltip 
-              content={(props) => <PointsEvolutionTooltip {...props} schedule={schedule} />} 
-              cursor={{ stroke: '#fff', strokeWidth: 1, strokeDasharray: "4 4" }}
-              wrapperStyle={{ zIndex: 1000 }} 
-            />
-            {dataKeys.map((key) => {
+  return (
+    <div className="standing-chart-container">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={evolutionData} margin={{ top: 10, right: 20, bottom: 20, left: 20 }}>
 
-              let teamColor: string = "#888";
+          <CartesianGrid strokeDasharray="3 3" stroke="#444" opacity={0.9} />
+
+          <XAxis
+            dataKey="round"
+            label={{ value: 'Round', fontWeight: 'bold', position: 'insideBottom', offset: -10, fill: '#fff' }}
+            stroke="white"
+          />
+          <YAxis
+            domain={[0, 'max']}
+            label={{ value: 'Points', fontWeight: 'bold', angle: -90, position: 'insideLeft', fill: '#fff' }}
+            stroke="white"
+          />
+          <Tooltip
+            content={(props) => <PointsEvolutionTooltip {...props} schedule={schedule} />}
+            cursor={{ stroke: '#fff', strokeWidth: 1, strokeDasharray: "4 4" }}
+            wrapperStyle={{ zIndex: 1000 }}
+          />
+          {dataKeys.map((key) => {
+
+            let teamColor: string = "#888";
+            let displayName: string = key;
+
+            if (type === 'driver') {
+              const driver = (standing as driverStanding_type[]).find((driverData) => {
+                let driverKey = '';
+                if (driverData.Driver.code)
+                  driverKey = driverData.Driver.code;
+                else
+                  driverKey = driverData.Driver.familyName.slice(0, 3).toUpperCase();
+                return driverKey === key
+              })
+              if (!driver) return null;
+
+              teamColor = team_theme[driver.Constructors?.[driver.Constructors.length - 1].constructorId];
+              displayName = `${driver.Driver.givenName} ${driver.Driver.familyName}`;
+
+            }
+            else if (type === 'constructor') {
+              const constructor = (standing as constructorStanding_type[]).find((constructorData) => {
+                return constructorData.Constructor.constructorId == key;
+              })
+              if (!constructor) return null;
               
-              if (type === 'driver') {
-                const driver = (standing as driverStanding_type[]).find((driverData) => {
-                  let driverKey = '';
-                  if (driverData.Driver.code)
-                      driverKey = driverData.Driver.code; 
-                  else
-                      driverKey = driverData.Driver.familyName.slice(0,3).toUpperCase();
-                  return driverKey === key
-                })
-                if (!driver) return null;
+              teamColor = team_theme[constructor.Constructor.constructorId] || "#888";
+              displayName = constructor.Constructor.name;
+            }
 
-                teamColor = team_theme[driver.Constructors?.[driver.Constructors.length-1].constructorId];
+            return (
+              <Line
+                type="monotone"
+                key={key}
+                name={displayName}
+                dataKey={key}
+                stroke={teamColor}
+                strokeWidth={3}
+                dot={{ r: 3, strokeWidth: 0, fill: teamColor }}
+                activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2 }}
+              />
+            )
+          })}
 
-              }
-              else if (type === 'constructor'){
-                const constructor = (standing as constructorStanding_type[]).find((constructorData) => {
-                  return constructorData.Constructor.name == key;
-                })
-                if (!constructor) return null;
-                teamColor = team_theme[constructor.Constructor.constructorId]
-              }
-
-              return (
-                <Line 
-                  type="monotone" 
-                  key={key} 
-                  dataKey={key} 
-                  stroke={teamColor}
-                  strokeWidth={3}
-                  dot={{ r: 3, strokeWidth: 0, fill: teamColor }}
-                  activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2 }}
-                />
-              )
-            })}
-            
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-    );
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
 }
 
 export default PointsEvolution

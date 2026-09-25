@@ -18,6 +18,7 @@ dist-ssr
 **/.venv/
 **/venv/
 **/cache/
+!backend/cache/standings/*.json
 test.*
 !.vscode/extensions.json
 .idea
@@ -29,6 +30,7 @@ test.*
 *.njsproj
 *.sln
 *.sw?
+*.env
 
 # AI Agents
 skills-lock.json
