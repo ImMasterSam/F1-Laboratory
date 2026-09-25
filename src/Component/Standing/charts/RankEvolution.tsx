@@ -129,6 +129,7 @@ function RankEvolution({type, year, schedule, standing}: Props) {
           {dataKeys.map((key) => {
 
              let teamColor: string = "#888";
+             let displayName: string = key;
                            
             if (type === 'driver') {
               const driver = (standing as driverStanding_type[]).find((driverData) => {
@@ -142,14 +143,16 @@ function RankEvolution({type, year, schedule, standing}: Props) {
               if (!driver) return null;
 
               teamColor = team_theme[driver.Constructors?.[driver.Constructors.length-1].constructorId];
+              displayName = `${driver.Driver.givenName} ${driver.Driver.familyName}`;
 
             }
             else if (type === 'constructor'){
               const constructor = (standing as constructorStanding_type[]).find((constructorData) => {
-                return constructorData.Constructor.name == key;
+                return constructorData.Constructor.constructorId == key;
               })
               if (!constructor) return null;
-              teamColor = team_theme[constructor.Constructor.constructorId]
+              teamColor = team_theme[constructor.Constructor.constructorId] || "#888";
+              displayName = constructor.Constructor.name;
             }
              const lineOpacity = (hoverData && hoverData !== key) ? 0.6 : 1;
              const strokeWidth = ((hoverData === key) ? 6 : 3) + (type === 'constructor' ? 2 : 0);
@@ -157,6 +160,7 @@ function RankEvolution({type, year, schedule, standing}: Props) {
              return (<>
               <Line
                 key={key} 
+                name={displayName}
                 type="bump" 
                 dataKey={key} 
                 stroke={teamColor}
@@ -197,7 +201,7 @@ function RankEvolution({type, year, schedule, standing}: Props) {
                           textAnchor="start"
                           opacity={lineOpacity}
                         >
-                          {key}
+                          {displayName}
                         </text>
                       );
                     }

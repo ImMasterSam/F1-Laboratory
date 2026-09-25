@@ -159,33 +159,33 @@ function LiveTimingPage() {
   }
 
   useEffect(() => {
-    console.log('[INFO] Loading components in Live Timing Page');
-    connectStream();
+    // console.log('[INFO] Loading components in Live Timing Page');
+    // connectStream();
 
-    // Internet Status Monitoring
-    const handleOnline = () => {
-      console.log('[INFO] Internet Recovered')
-      connectStream()
-    }
+    // // Internet Status Monitoring
+    // const handleOnline = () => {
+    //   console.log('[INFO] Internet Recovered')
+    //   connectStream()
+    // }
     
-    const handleOffline = () => {
-      console.log('[INFO] Internet Disconnected')
-      setConnectionState(prev => ({
-        ...prev,
-        isConnected: false,
-        error: 'Internet is Disconnected'
-      }))
-    }
+    // const handleOffline = () => {
+    //   console.log('[INFO] Internet Disconnected')
+    //   setConnectionState(prev => ({
+    //     ...prev,
+    //     isConnected: false,
+    //     error: 'Internet is Disconnected'
+    //   }))
+    // }
 
-    window.addEventListener('online', handleOnline)
-    window.addEventListener('offline', handleOffline)
+    // window.addEventListener('online', handleOnline)
+    // window.addEventListener('offline', handleOffline)
 
-    return () => {
-      console.log('[INFO] Unloading components in Live Timing Page, and cleaning up');
-      cleanUpStream()
-      window.removeEventListener('online', handleOnline)
-      window.removeEventListener('offline', handleOffline)
-    }
+    // return () => {
+    //   console.log('[INFO] Unloading components in Live Timing Page, and cleaning up');
+    //   cleanUpStream()
+    //   window.removeEventListener('online', handleOnline)
+    //   window.removeEventListener('offline', handleOffline)
+    // }
   }, [])
 
   return <div className="live-timing">
@@ -204,8 +204,8 @@ function LiveTimingPage() {
       </div>
     </div>
     : <div className="connecting">
-        <h2>Connecting to Server ...</h2>
-        <p>( Attempts: {connectionState.reconnectAttempts} / 20 )</p>
+        <h2>Currently Unavailable</h2>
+        <p>( Due to F1 new live timing policy )</p>
       </div>}
   </div>
 }
