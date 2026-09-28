@@ -68,7 +68,7 @@ def _dict_to_array(d):
     return [d.get(i, 0) for i in range(max_idx + 1)]
 
 
-def _build_segments_timeline(session) -> list:
+def _build_timing_app_timeline(session) -> list:
     from fastf1._api import fetch_page, parse
     import pandas as pd
     import copy
@@ -79,7 +79,7 @@ def _build_segments_timeline(session) -> list:
             return []
         records = parse(page_content)
     except Exception as e:
-        logger.error(f"Failed to fetch timing_data for segments: {e}")
+        logger.error(f"Failed to fetch timing_data: {e}")
         return []
 
     state = {}
@@ -101,7 +101,11 @@ def _build_segments_timeline(session) -> list:
         if 'Lines' in data:
             for drv, drv_data in data['Lines'].items():
                 if drv not in state:
-                    state[drv] = {0: {}, 1: {}, 2: {}}
+                    state[drv] = {
+                        'segments': {0: {}, 1: {}, 2: {}},
+                        'gap': '-- ---',
+                        'interval': '-- ---'
+                    }
 
                 if 'Sectors' in drv_data:
                     sectors = drv_data['Sectors']
@@ -125,8 +129,27 @@ def _build_segments_timeline(session) -> list:
 
                             for seg_idx, seg_data in seg_items:
                                 if isinstance(seg_data, dict) and 'Status' in seg_data:
-                                    state[drv][s_idx][int(seg_idx)] = seg_data['Status']
+                                    state[drv]['segments'][s_idx][int(seg_idx)] = seg_data['Status']
                                     updated = True
+
+                if 'GapToLeader' in drv_data:
+                    gap_val = drv_data['GapToLeader']
+                    if gap_val is None:
+                        state[drv]['gap'] = ''
+                    else:
+                        state[drv]['gap'] = str(gap_val)
+                    updated = True
+
+                if 'IntervalToPositionAhead' in drv_data:
+                    int_val = drv_data['IntervalToPositionAhead']
+                    if int_val is None:
+                        pass
+                    elif isinstance(int_val, dict):
+                        if 'Value' in int_val:
+                            state[drv]['interval'] = str(int_val['Value'])
+                    else:
+                        state[drv]['interval'] = str(int_val)
+                    updated = True
 
         if updated:
             timeline.append({
@@ -215,13 +238,14 @@ def generate_replay_data(year: int = None, round_number: int = None,
 
     # ─── Build race control messages timeline ───
     rcm_timeline = _build_rcm_timeline(session)
-    segments_timeline = _build_segments_timeline(session)
+    timing_app_timeline = _build_timing_app_timeline(session)
 
     # ─── Compute default segment counts per sector ───
     # Used to fill empty segments with status=0 so frontend elements don't disappear
     default_segment_counts = {0: 0, 1: 0, 2: 0}
-    for entry in segments_timeline:
-        for drv_num, drv_segs in entry['data'].items():
+    for entry in timing_app_timeline:
+        for drv_num, drv_data in entry['data'].items():
+            drv_segs = drv_data.get('segments', {})
             for s_idx in range(3):
                 if s_idx in drv_segs and drv_segs[s_idx]:
                     count = max(drv_segs[s_idx].keys()) + 1
@@ -274,7 +298,7 @@ def generate_replay_data(year: int = None, round_number: int = None,
             weather_timeline=weather_timeline,
             track_status_timeline=track_status_timeline,
             rcm_timeline=rcm_timeline,
-            segments_timeline=segments_timeline,
+            timing_app_timeline=timing_app_timeline,
             session=session,
             grid_positions=grid_positions,
             default_segment_counts=default_segment_counts,
@@ -686,40 +710,7 @@ def _get_driver_state_at_time(driver_states: list, current_session_time: float) 
     return last_completed, False, last_completed
 
 
-def _compute_gap_to_leader(results: list) -> list:
-    """Compute gap to leader and interval to position ahead for race."""
-    if not results:
-        return results
 
-    # Sort by position
-    results.sort(key=lambda x: x['position'])
-
-    leader_time = None
-    prev_time = None
-
-    for r in results:
-        lap_end = r.get('_lapEndSeconds')
-        if leader_time is None:
-            leader_time = lap_end
-            r['Gap'] = {'toLeader': '', 'toFront': ''}
-        else:
-            if lap_end is not None and leader_time is not None:
-                gap_to_leader = lap_end - leader_time
-                gap_str = f'+{gap_to_leader:.3f}' if gap_to_leader > 0 else ''
-            else:
-                gap_str = '-- ---'
-
-            if lap_end is not None and prev_time is not None:
-                interval = lap_end - prev_time
-                interval_str = f'+{interval:.3f}' if interval > 0 else ''
-            else:
-                interval_str = '-- ---'
-
-            r['Gap'] = {'toLeader': gap_str, 'toFront': interval_str}
-
-        prev_time = lap_end
-
-    return results
 
 
 def _build_snapshot(t: int, current_session_time: float,
@@ -728,7 +719,7 @@ def _build_snapshot(t: int, current_session_time: float,
                     pos_data_resampled: dict, driver_lap_states: dict,
                     driver_info_map: dict, weather_timeline: list,
                     track_status_timeline: list, rcm_timeline: list,
-                    segments_timeline: list, session,
+                    timing_app_timeline: list, session,
                     grid_positions: dict = None,
                     default_segment_counts: dict = None) -> dict:
     """Build a single snapshot at time t (seconds from race start)."""
@@ -759,8 +750,8 @@ def _build_snapshot(t: int, current_session_time: float,
         'driverPos': driver_positions,
     }
 
-    # ─── Segments ───
-    current_segments = _get_current_value(segments_timeline, current_session_time) or {}
+    # ─── Timing App Data (Segments, Gap, Interval) ───
+    current_timing_app = _get_current_value(timing_app_timeline, current_session_time) or {}
 
     # ─── Driver results (position, lap time, tire, etc.) ───
     results = []
@@ -794,19 +785,19 @@ def _build_snapshot(t: int, current_session_time: float,
                 'drspit': {'drsStatus': 0, 'pitStatus': 0},
                 'status': {'retired': False, 'stopped': False, 'danger': False, 'knockedOut': False},
                 'tire': {'compound': first_compound, 'laps': first_tyre_life},
-                'Gap': {'toLeader': '', 'toFront': ''},
+                'Gap': {'toLeader': '+-.---', 'toFront': '+-.---'},
                 'lapTime': {
                     'lastLap': {'lapTime': '-- ---', 'overallFastest': False, 'personalFastest': False},
                     'bestLap': {'lapTime': '-- ---', 'overallFastest': False, 'personalFastest': False},
                 },
                 'sectors': default_sectors,
-                '_lapEndSeconds': None,
             })
             continue
 
-        drv_segs = current_segments.get(drv_num, {0: {}, 1: {}, 2: {}})
+        drv_timing = current_timing_app.get(drv_num, {})
+        drv_segs = drv_timing.get('segments', {0: {}, 1: {}, 2: {}})
         for s_idx in range(3):
-            seg_array = _dict_to_array(drv_segs[s_idx])
+            seg_array = _dict_to_array(drv_segs.get(s_idx, {}))
             # If no segment data yet, fill with status=0 using default counts
             if not seg_array and default_segment_counts.get(s_idx, 0) > 0:
                 seg_array = [0] * default_segment_counts[s_idx]
@@ -882,12 +873,19 @@ def _build_snapshot(t: int, current_session_time: float,
                 'bestLap': state['lapTime']['bestLap'],
             }
 
-        # For gap computation: during mid-lap, use last completed lap's end time
-        # (not the current in-progress lap's future end time)
-        if is_mid_lap:
-            gap_ref_time = last_completed['lapEndSeconds'] if last_completed is not None else None
-        else:
-            gap_ref_time = state['lapEndSeconds']
+        def _format_gap_val(val):
+            import re
+            if val is None or str(val).strip() in ('', '-- ---'):
+                return '+-.---'
+            val_str = str(val).strip()
+            lap_match = re.match(r'^(\d+)\s*L$', val_str, re.IGNORECASE)
+            if lap_match:
+                laps = int(lap_match.group(1))
+                return f"{laps} Lap" if laps == 1 else f"{laps} Laps"
+            return val_str
+
+        gap_to_leader = _format_gap_val(drv_timing.get('gap'))
+        gap_to_front = _format_gap_val(drv_timing.get('interval'))
 
         result = {
             'driver': driver_info_map[drv_num],
@@ -895,19 +893,13 @@ def _build_snapshot(t: int, current_session_time: float,
             'drspit': {'drsStatus': 0, 'pitStatus': pit_status},
             'status': {'retired': is_retired, 'stopped': is_stopped, 'danger': False, 'knockedOut': False},
             'tire': {'compound': state['compound'], 'laps': state['tyreLife']},
-            'Gap': {'toLeader': '-- ---', 'toFront': '-- ---'},
+            'Gap': {'toLeader': gap_to_leader, 'toFront': gap_to_front},
             'lapTime': lap_time_data,
             'sectors': sectors_data,
-            '_lapEndSeconds': gap_ref_time,
         }
         results.append(result)
 
-    # Compute gaps
-    results = _compute_gap_to_leader(results)
-
-    # Remove internal field and sort by position
-    for r in results:
-        r.pop('_lapEndSeconds', None)
+    # Sort by position
     results.sort(key=lambda x: x['position'])
 
     # ─── Weather ───
