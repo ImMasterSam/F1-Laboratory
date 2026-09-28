@@ -31,7 +31,6 @@ function LiveTimingPage() {
 
   const [data, setData] = useState<dashData_type | null>(null)
   const [snapshots, setSnapshots] = useState<dashData_type[]>([])
-  const [metadata, setMetadata] = useState<ReplayMetadata | null>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
   const [loadingState, setLoadingState] = useState<LoadingState>('idle')
@@ -70,7 +69,6 @@ function LiveTimingPage() {
       console.log(`[INFO] Metadata:`, replayData.metadata)
 
       setSnapshots(replayData.snapshots)
-      setMetadata(replayData.metadata)
       setCurrentIndex(0)
       setData(replayData.snapshots[0] || null)
       setLoadingState('loaded')
