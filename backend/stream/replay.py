@@ -137,6 +137,30 @@ def _build_segments_timeline(session) -> list:
     return timeline
 
 
+def _build_grid_positions(session) -> dict:
+    """Build grid position map { driver_number_str: grid_position }.
+    Uses session.results GridPosition if available, otherwise falls back to
+    qualifying results or driver order."""
+    grid = {}
+    try:
+        results = session.results
+        for drv_num_str in session.drivers:
+            try:
+                drv_result = results.loc[drv_num_str]
+                gp = drv_result.get('GridPosition', None)
+                if pd.notna(gp) and int(gp) > 0:
+                    grid[drv_num_str] = int(gp)
+                else:
+                    grid[drv_num_str] = 99
+            except (KeyError, TypeError):
+                grid[drv_num_str] = 99
+    except Exception as e:
+        logger.warning(f"Could not build grid positions: {e}")
+        for i, drv_num_str in enumerate(session.drivers, 1):
+            grid[drv_num_str] = i
+    return grid
+
+
 def generate_replay_data(year: int = None, round_number: int = None,
                           session_type: str = 'R') -> dict:
     """
@@ -180,6 +204,9 @@ def generate_replay_data(year: int = None, round_number: int = None,
     # ─── Build per-lap driver state (position, lap time, tire, sectors, etc.) ───
     driver_lap_states = _build_driver_lap_states(session)
 
+    # ─── Build grid positions (starting order) ───
+    grid_positions = _build_grid_positions(session)
+
     # ─── Build weather timeline ───
     weather_timeline = _build_weather_timeline(session)
 
@@ -189,6 +216,19 @@ def generate_replay_data(year: int = None, round_number: int = None,
     # ─── Build race control messages timeline ───
     rcm_timeline = _build_rcm_timeline(session)
     segments_timeline = _build_segments_timeline(session)
+
+    # ─── Compute default segment counts per sector ───
+    # Used to fill empty segments with status=0 so frontend elements don't disappear
+    default_segment_counts = {0: 0, 1: 0, 2: 0}
+    for entry in segments_timeline:
+        for drv_num, drv_segs in entry['data'].items():
+            for s_idx in range(3):
+                if s_idx in drv_segs and drv_segs[s_idx]:
+                    count = max(drv_segs[s_idx].keys()) + 1
+                    if count > default_segment_counts[s_idx]:
+                        default_segment_counts[s_idx] = count
+        if all(v > 0 for v in default_segment_counts.values()):
+            break  # Found counts for all 3 sectors
 
     # ─── Determine time range ───
     session_start = session.session_start_time
@@ -236,6 +276,8 @@ def generate_replay_data(year: int = None, round_number: int = None,
             rcm_timeline=rcm_timeline,
             segments_timeline=segments_timeline,
             session=session,
+            grid_positions=grid_positions,
+            default_segment_counts=default_segment_counts,
         )
         snapshots.append(snapshot)
 
@@ -353,7 +395,7 @@ def _build_driver_lap_states(session) -> dict:
     """
     Build per-driver, per-lap state info.
     Returns { driver_number_str: [{ lap_number, position, lap_time, sectors, ... }, ...] }
-    Each entry includes the session time when the lap ended.
+    Each entry includes the session time when the lap started and ended.
     """
     laps = session.laps
     states = {}
@@ -364,6 +406,9 @@ def _build_driver_lap_states(session) -> dict:
     all_best_s2 = laps['Sector2Time'].min()
     all_best_s3 = laps['Sector3Time'].min()
 
+    # Pre-compute session start time for lap start estimation
+    session_start_seconds = session.session_start_time.total_seconds()
+
     for drv_num_str in session.drivers:
         drv_laps = laps.pick_drivers(drv_num_str).sort_values('LapNumber')
         driver_states = []
@@ -371,6 +416,8 @@ def _build_driver_lap_states(session) -> dict:
         personal_best_s1 = pd.NaT
         personal_best_s2 = pd.NaT
         personal_best_s3 = pd.NaT
+
+        prev_lap_end_seconds = None
 
         for _, lap in drv_laps.iterrows():
             lap_time = lap['LapTime']
@@ -411,6 +458,17 @@ def _build_driver_lap_states(session) -> dict:
             else:
                 lap_end_seconds = None
 
+            # Determine when this lap started
+            # For the first lap, use session start time or LapStartTime if available
+            lap_start_time = lap.get('LapStartTime', pd.NaT)
+            if pd.notna(lap_start_time):
+                lap_start_seconds = lap_start_time.total_seconds()
+            elif prev_lap_end_seconds is not None:
+                lap_start_seconds = prev_lap_end_seconds
+            else:
+                # First lap — use session start time as approximation
+                lap_start_seconds = session_start_seconds
+
             # Sector session times (when each sector was completed)
             s1_end = lap['Sector1SessionTime']
             s2_end = lap['Sector2SessionTime']
@@ -419,6 +477,7 @@ def _build_driver_lap_states(session) -> dict:
             state = {
                 'lapNumber': int(lap['LapNumber']) if pd.notna(lap['LapNumber']) else 0,
                 'position': int(lap['Position']) if pd.notna(lap['Position']) else 99,
+                'lapStartSeconds': lap_start_seconds,
                 'lapEndSeconds': lap_end_seconds,
                 'sectorEndSeconds': [
                     s1_end.total_seconds() if pd.notna(s1_end) else None,
@@ -491,6 +550,7 @@ def _build_driver_lap_states(session) -> dict:
                 'pitOut': pd.notna(lap['PitOutTime']),
             }
             driver_states.append(state)
+            prev_lap_end_seconds = lap_end_seconds
 
         states[drv_num_str] = driver_states
 
@@ -594,17 +654,36 @@ def _get_accumulated_messages(timeline: list, current_time: float) -> list:
     return messages[::-1]  # Most recent first
 
 
-def _get_driver_state_at_time(driver_states: list, current_session_time: float) -> Optional[dict]:
-    """Get the latest lap state for a driver at the given session time."""
-    result = None
+def _get_driver_state_at_time(driver_states: list, current_session_time: float) -> tuple[Optional[dict], bool, Optional[dict]]:
+    """Get the latest lap state for a driver at the given session time.
+
+    Returns (state, is_mid_lap, last_completed):
+      - state: the best matching lap state, or None if no data
+      - is_mid_lap: True if the driver is currently mid-lap (lap started but not finished)
+      - last_completed: the last fully completed lap state (for gap computation during mid-lap)
+    """
+    last_completed = None
+    current_in_progress = None
+
     for state in driver_states:
-        if state['lapEndSeconds'] is not None and state['lapEndSeconds'] <= current_session_time:
-            result = state
-        elif state['lapEndSeconds'] is None:
-            # First lap may not have end time, use it as initial state
-            if result is None:
-                result = state
-    return result
+        lap_start = state.get('lapStartSeconds')
+        lap_end = state.get('lapEndSeconds')
+
+        if lap_end is not None and lap_end <= current_session_time:
+            # This lap is fully completed
+            last_completed = state
+        elif lap_start is not None and lap_start <= current_session_time:
+            # This lap has started but hasn't ended yet — we're mid-lap
+            current_in_progress = state
+            break  # States are sorted by lap number, so the first in-progress is current
+        elif lap_end is None and lap_start is None:
+            # Fallback: no timing data at all, use as initial state
+            if last_completed is None:
+                last_completed = state
+
+    if current_in_progress is not None:
+        return current_in_progress, True, last_completed
+    return last_completed, False, last_completed
 
 
 def _compute_gap_to_leader(results: list) -> list:
@@ -649,8 +728,15 @@ def _build_snapshot(t: int, current_session_time: float,
                     pos_data_resampled: dict, driver_lap_states: dict,
                     driver_info_map: dict, weather_timeline: list,
                     track_status_timeline: list, rcm_timeline: list,
-                    segments_timeline: list, session) -> dict:
+                    segments_timeline: list, session,
+                    grid_positions: dict = None,
+                    default_segment_counts: dict = None) -> dict:
     """Build a single snapshot at time t (seconds from race start)."""
+
+    if grid_positions is None:
+        grid_positions = {}
+    if default_segment_counts is None:
+        default_segment_counts = {0: 0, 1: 0, 2: 0}
 
     # ─── Driver positions on track ───
     driver_positions = []
@@ -682,36 +768,60 @@ def _build_snapshot(t: int, current_session_time: float,
 
     for drv_num in driver_info_map.keys():
         drv_states = driver_lap_states.get(drv_num, [])
-        state = _get_driver_state_at_time(drv_states, current_session_time)
+        state, is_mid_lap, last_completed = _get_driver_state_at_time(drv_states, current_session_time)
 
         if state is None:
-            # Driver hasn't started yet, or no data
+            # Driver hasn't started yet — use grid position and first lap tire info
+            grid_pos = grid_positions.get(drv_num, 99)
+            first_compound = 'UNKNOWN'
+            first_tyre_life = 0
+            if drv_states:
+                first_compound = drv_states[0].get('compound', 'UNKNOWN')
+                first_tyre_life = drv_states[0].get('tyreLife', 0)
+
+            # Use default segment counts to provide status=0 arrays
+            default_sectors = []
+            for s_idx in range(3):
+                default_sectors.append({
+                    'sectorLast': {'sectorTime': '-- ---', 'previousSectorTime': '-- ---', 'overallFastest': False, 'personalFastest': False},
+                    'sectorBest': {'sectorTime': '-- ---', 'previousSectorTime': '-- ---', 'overallFastest': False, 'personalFastest': False},
+                    'segments': [0] * default_segment_counts.get(s_idx, 0),
+                })
+
             results.append({
                 'driver': driver_info_map[drv_num],
-                'position': 99,
+                'position': grid_pos,
                 'drspit': {'drsStatus': 0, 'pitStatus': 0},
                 'status': {'retired': False, 'stopped': False, 'danger': False, 'knockedOut': False},
-                'tire': {'compound': 'UNKNOWN', 'laps': 0},
-                'Gap': {'toLeader': '-- ---', 'toFront': '-- ---'},
+                'tire': {'compound': first_compound, 'laps': first_tyre_life},
+                'Gap': {'toLeader': '', 'toFront': ''},
                 'lapTime': {
                     'lastLap': {'lapTime': '-- ---', 'overallFastest': False, 'personalFastest': False},
                     'bestLap': {'lapTime': '-- ---', 'overallFastest': False, 'personalFastest': False},
                 },
-                'sectors': [
-                    {'sectorLast': {'sectorTime': '-- ---', 'previousSectorTime': '-- ---', 'overallFastest': False, 'personalFastest': False},
-                     'sectorBest': {'sectorTime': '-- ---', 'previousSectorTime': '-- ---', 'overallFastest': False, 'personalFastest': False},
-                     'segments': []},
-                ] * 3,
+                'sectors': default_sectors,
                 '_lapEndSeconds': None,
             })
             continue
 
         drv_segs = current_segments.get(drv_num, {0: {}, 1: {}, 2: {}})
         for s_idx in range(3):
-            state['sectors'][s_idx]['segments'] = _dict_to_array(drv_segs[s_idx])
+            seg_array = _dict_to_array(drv_segs[s_idx])
+            # If no segment data yet, fill with status=0 using default counts
+            if not seg_array and default_segment_counts.get(s_idx, 0) > 0:
+                seg_array = [0] * default_segment_counts[s_idx]
+            state['sectors'][s_idx]['segments'] = seg_array
 
         if state['lapNumber'] > current_lap:
             current_lap = state['lapNumber']
+
+        # For mid-lap drivers on lap 1 that haven't had any completed lap yet,
+        # use grid position for ranking
+        position = state['position']
+        if is_mid_lap and state['lapNumber'] <= 1:
+            # Use grid position if the state position is invalid (99 or missing)
+            if position == 99 or position == 0:
+                position = grid_positions.get(drv_num, 99)
 
         # Determine pit status
         pit_status = 0
@@ -739,16 +849,56 @@ def _build_snapshot(t: int, current_session_time: float,
                 except Exception:
                     pass
 
+        # Build sector data: for mid-lap, show sector times as they become available
+        sectors_data = []
+        for s_idx in range(3):
+            sector = state['sectors'][s_idx]
+            sector_end = state['sectorEndSeconds'][s_idx]
+
+            if is_mid_lap and (sector_end is None or sector_end > current_session_time):
+                # This sector hasn't been completed yet during mid-lap — show blank
+                sectors_data.append({
+                    'sectorLast': {
+                        'sectorTime': '-- ---',
+                        'previousSectorTime': '-- ---',
+                        'overallFastest': False,
+                        'personalFastest': False,
+                    },
+                    'sectorBest': sector['sectorBest'],
+                    'segments': sector['segments'],
+                })
+            else:
+                sectors_data.append(sector)
+
+        # For mid-lap, lap time hasn't been set yet — show blank for lastLap
+        lap_time_data = state['lapTime']
+        if is_mid_lap:
+            lap_time_data = {
+                'lastLap': {
+                    'lapTime': '-- ---',
+                    'overallFastest': False,
+                    'personalFastest': False,
+                },
+                'bestLap': state['lapTime']['bestLap'],
+            }
+
+        # For gap computation: during mid-lap, use last completed lap's end time
+        # (not the current in-progress lap's future end time)
+        if is_mid_lap:
+            gap_ref_time = last_completed['lapEndSeconds'] if last_completed is not None else None
+        else:
+            gap_ref_time = state['lapEndSeconds']
+
         result = {
             'driver': driver_info_map[drv_num],
-            'position': state['position'],
+            'position': position,
             'drspit': {'drsStatus': 0, 'pitStatus': pit_status},
             'status': {'retired': is_retired, 'stopped': is_stopped, 'danger': False, 'knockedOut': False},
             'tire': {'compound': state['compound'], 'laps': state['tyreLife']},
             'Gap': {'toLeader': '-- ---', 'toFront': '-- ---'},
-            'lapTime': state['lapTime'],
-            'sectors': state['sectors'],
-            '_lapEndSeconds': state['lapEndSeconds'],
+            'lapTime': lap_time_data,
+            'sectors': sectors_data,
+            '_lapEndSeconds': gap_ref_time,
         }
         results.append(result)
 
