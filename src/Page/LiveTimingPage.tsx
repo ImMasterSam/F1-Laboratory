@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import Dashboard from "../Component/LiveTiming/Dashboard"
-import type { ConnectionState, dashData_type } from "../Type/Dashtypes"
+import type { dashData_type } from "../Type/Dashtypes"
 import Map from "../Component/LiveTiming/Map";
 import RaceControl from "../Component/LiveTiming/RaceControl";
 import Radio from "../Component/LiveTiming/Radio";
@@ -36,12 +36,6 @@ function LiveTimingPage() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [loadingState, setLoadingState] = useState<LoadingState>('idle')
   const [loadingError, setLoadingError] = useState<string | null>(null)
-  const [connectionState] = useState<ConnectionState>({
-    isConnected: true,
-    lastDataTime: 0,
-    reconnectAttempts: 0,
-    error: null
-  })
 
   const playIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -158,7 +152,7 @@ function LiveTimingPage() {
 
     {loadingState === 'loaded' && data?.grandPrixName && (
       <div className="dash-container">
-        <Dashboard data={data} connectionState={connectionState} />
+        <Dashboard data={data} />
         <div className="dash-info">
           {snapshots.length > 0 && (
             <ReplayControls

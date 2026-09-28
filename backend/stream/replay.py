@@ -25,6 +25,8 @@ fastf1.Cache.enable_cache(_cache_dir)
 
 # ─── Cache for generated replay data ───
 _replay_cache: dict = {}
+_json_cache_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'cache', 'replay')
+os.makedirs(_json_cache_dir, exist_ok=True)
 
 
 def _format_timedelta(td: pd.Timedelta) -> str:
@@ -193,17 +195,30 @@ def generate_replay_data(year: int = None, round_number: int = None,
       - metadata: { grandPrixName, session, country, totalDuration, totalLaps, ... }
       - snapshots: list of dashData_type dicts, one per second
     """
+    if year is None or round_number is None:
+        year, round_number, event_name = _get_latest_completed_round()
+    else:
+        event_name = fastf1.get_event(year, round_number)['EventName']
+
+    safe_event_name = str(event_name).replace('/', '_')
+    if session_type != 'R':
+        cache_filename = f"{year}_{safe_event_name}_{session_type}.json"
+    else:
+        cache_filename = f"{year}_{safe_event_name}.json"
+    cache_filepath = os.path.join(_json_cache_dir, cache_filename)
+
+    if os.path.exists(cache_filepath):
+        logger.info(f"Using file-cached replay data from {cache_filepath}")
+        try:
+            with open(cache_filepath, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Failed to read cache file {cache_filepath}: {e}")
+
     cache_key = f"{year}_{round_number}_{session_type}"
     if cache_key in _replay_cache:
-        logger.info(f"Using cached replay data for {cache_key}")
+        logger.info(f"Using in-memory cached replay data for {cache_key}")
         return _replay_cache[cache_key]
-
-    # If no year/round specified, use latest completed race
-    if year is None or round_number is None:
-        year, round_number, _ = _get_latest_completed_round()
-        cache_key = f"{year}_{round_number}_{session_type}"
-        if cache_key in _replay_cache:
-            return _replay_cache[cache_key]
 
     logger.info(f"Generating replay data for {year} Round {round_number} ({session_type})")
 
@@ -319,6 +334,14 @@ def generate_replay_data(year: int = None, round_number: int = None,
     }
 
     _replay_cache[cache_key] = result
+
+    try:
+        with open(cache_filepath, 'w', encoding='utf-8') as f:
+            json.dump(result, f, ensure_ascii=False)
+        logger.info(f"Saved replay data to cache file {cache_filepath}")
+    except Exception as e:
+        logger.error(f"Failed to save cache file {cache_filepath}: {e}")
+
     logger.info(f"Replay data generated: {len(snapshots)} snapshots")
     return result
 

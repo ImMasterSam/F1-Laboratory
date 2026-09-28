@@ -96,8 +96,8 @@ export type weather_type = {
 }
 
 export type trackStatus_type = {
-  status: number; 
-  message: string; 
+  status: number;
+  message: string;
 }
 
 export type clock_type = {
@@ -141,15 +141,8 @@ export type dashData_type = {
   teamRadio: teamRadio_type[];
   trackStatus: trackStatus_type;
   other?: quali_type | race_type;
-  
+
   type?: 'connected' | 'data';
   timestamp?: number;
   error?: string;
-}
-
-export type ConnectionState = {
-  isConnected: boolean;
-  lastDataTime: number;
-  reconnectAttempts: number;
-  error: string | null;
 }
