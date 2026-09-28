@@ -56,8 +56,8 @@ function LiveTimingPage() {
     setLoadingError(null)
 
     try {
-      // 這裡先寫死 127.0.0.1 供本地測試
-      const url = 'http://127.0.0.1:5000/api/replay'
+      const baseUrl = import.meta.env.VITE_STREAM_URL || 'http://127.0.0.1:5000'
+      const url = `${baseUrl}/api/replay`
       console.log(`[INFO] Fetching replay data from ${url}`)
 
       const response = await fetch(url)
