@@ -1,6 +1,7 @@
 import wss
 from data import *
 import liveTiming
+import replay
 
 import asyncio
 import json
@@ -13,7 +14,7 @@ from state import app_state
 
 # import fastf1
 
-from quart import Quart, make_response
+from quart import Quart, make_response, request
 from quart_cors import cors
 
 # from gevent.pywsgi import WSGIServer
@@ -47,8 +48,9 @@ async def startup():
     """Startup tasks to run before the server starts."""
     root_logger.info("Starting up the API server...")
 
-    app.add_background_task(wss.connect_wss)
-    app.add_background_task(wss.monitor_session)
+    # SignalR WebSocket is no longer available
+    # app.add_background_task(wss.connect_wss)
+    # app.add_background_task(wss.monitor_session)
 
 @app.route('/stream')
 async def stream():
@@ -122,6 +124,45 @@ async def stream_live():
     }
     response.headers.update(headers)
     return response
+
+@app.route('/api/replay')
+async def api_replay():
+    """REST endpoint to get replay data for a completed race session."""
+    year = request.args.get('year', type=int, default=None)
+    round_number = request.args.get('round', type=int, default=None)
+    session_type = request.args.get('session', type=str, default='R')
+
+    try:
+        root_logger.info(f"Replay request: year={year}, round={round_number}, session={session_type}")
+        data = replay.generate_replay_data(year, round_number, session_type)
+        
+        # Serialize to JSON and gzip compress
+        import gzip
+        raw_json = json.dumps(data).encode('utf-8')
+        compressed = gzip.compress(raw_json, compresslevel=6)
+        
+        root_logger.info(f"Replay response compressed to {len(compressed) / 1024 / 1024:.1f}MB")
+        
+        response = await make_response(compressed)
+        response.headers['Content-Type'] = 'application/json'
+        response.headers['Content-Encoding'] = 'gzip'
+        response.headers['Cache-Control'] = 'public, max-age=3600'
+        response.timeout = None
+        return response
+
+    except Exception as e:
+        root_logger.exception("Error generating replay data")
+        return await make_response(
+            json.dumps({'error': str(e)}), 500
+        )
+
+if __name__ == '__main__':
+
+    # 檢查並建立 cache 資料夾
+    # if not os.path.exists('cache'):
+    #     os.makedirs('cache')
+
+    app.run(debug=True)
 
 if __name__ == '__main__':
 

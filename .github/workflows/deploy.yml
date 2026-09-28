@@ -42,6 +42,7 @@ jobs:
         env:
           # 將 GitHub Secret 傳遞給 Vite
           VITE_API_URL: ${{ secrets.F1_API_URL }}
+          VITE_STREAM_URL: ${{ secrets.F1_STREAM_URL }}
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v4
