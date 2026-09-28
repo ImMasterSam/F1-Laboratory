@@ -424,12 +424,6 @@ def _build_driver_lap_states(session) -> dict:
     laps = session.laps
     states = {}
 
-    # Pre-compute best lap times and best sector times per session
-    all_best_lap = laps['LapTime'].min()
-    all_best_s1 = laps['Sector1Time'].min()
-    all_best_s2 = laps['Sector2Time'].min()
-    all_best_s3 = laps['Sector3Time'].min()
-
     # Pre-compute session start time for lap start estimation
     session_start_seconds = session.session_start_time.total_seconds()
 
@@ -511,13 +505,13 @@ def _build_driver_lap_states(session) -> dict:
                 'lapTime': {
                     'lastLap': {
                         'lapTime': _format_timedelta(lap_time),
-                        'overallFastest': pd.notna(lap_time) and pd.notna(all_best_lap) and lap_time == all_best_lap,
                         'personalFastest': is_pb_lap,
+                        'value': lap_time.total_seconds() if pd.notna(lap_time) else None,
                     },
                     'bestLap': {
                         'lapTime': _format_timedelta(personal_best_lap),
-                        'overallFastest': pd.notna(personal_best_lap) and pd.notna(all_best_lap) and personal_best_lap == all_best_lap,
                         'personalFastest': True,
+                        'value': personal_best_lap.total_seconds() if pd.notna(personal_best_lap) else None,
                     },
                 },
                 'sectors': [
@@ -525,14 +519,14 @@ def _build_driver_lap_states(session) -> dict:
                         'sectorLast': {
                             'sectorTime': _format_timedelta(s1_time),
                             'previousSectorTime': '-- ---',
-                            'overallFastest': pd.notna(s1_time) and pd.notna(all_best_s1) and s1_time == all_best_s1,
                             'personalFastest': is_pb_s1,
+                            'value': s1_time.total_seconds() if pd.notna(s1_time) else None,
                         },
                         'sectorBest': {
                             'sectorTime': _format_timedelta(personal_best_s1),
                             'previousSectorTime': '-- ---',
-                            'overallFastest': pd.notna(personal_best_s1) and pd.notna(all_best_s1) and personal_best_s1 == all_best_s1,
                             'personalFastest': True,
+                            'value': personal_best_s1.total_seconds() if pd.notna(personal_best_s1) else None,
                         },
                         'segments': [],
                     },
@@ -540,14 +534,14 @@ def _build_driver_lap_states(session) -> dict:
                         'sectorLast': {
                             'sectorTime': _format_timedelta(s2_time),
                             'previousSectorTime': '-- ---',
-                            'overallFastest': pd.notna(s2_time) and pd.notna(all_best_s2) and s2_time == all_best_s2,
                             'personalFastest': is_pb_s2,
+                            'value': s2_time.total_seconds() if pd.notna(s2_time) else None,
                         },
                         'sectorBest': {
                             'sectorTime': _format_timedelta(personal_best_s2),
                             'previousSectorTime': '-- ---',
-                            'overallFastest': pd.notna(personal_best_s2) and pd.notna(all_best_s2) and personal_best_s2 == all_best_s2,
                             'personalFastest': True,
+                            'value': personal_best_s2.total_seconds() if pd.notna(personal_best_s2) else None,
                         },
                         'segments': [],
                     },
@@ -555,14 +549,14 @@ def _build_driver_lap_states(session) -> dict:
                         'sectorLast': {
                             'sectorTime': _format_timedelta(s3_time),
                             'previousSectorTime': '-- ---',
-                            'overallFastest': pd.notna(s3_time) and pd.notna(all_best_s3) and s3_time == all_best_s3,
                             'personalFastest': is_pb_s3,
+                            'value': s3_time.total_seconds() if pd.notna(s3_time) else None,
                         },
                         'sectorBest': {
                             'sectorTime': _format_timedelta(personal_best_s3),
                             'previousSectorTime': '-- ---',
-                            'overallFastest': pd.notna(personal_best_s3) and pd.notna(all_best_s3) and personal_best_s3 == all_best_s3,
                             'personalFastest': True,
+                            'value': personal_best_s3.total_seconds() if pd.notna(personal_best_s3) else None,
                         },
                         'segments': [],
                     },
@@ -753,19 +747,63 @@ def _build_snapshot(t: int, current_session_time: float,
     # ─── Timing App Data (Segments, Gap, Interval) ───
     current_timing_app = _get_current_value(timing_app_timeline, current_session_time) or {}
 
+    # ─── Determine overall bests up to current_session_time ───
+    overall_best_lap_val = None
+    overall_best_s1_val = None
+    overall_best_s2_val = None
+    overall_best_s3_val = None
+
+    drv_states_at_time = {}
+    for drv_num in driver_info_map.keys():
+        drv_states = driver_lap_states.get(drv_num, [])
+        state, is_mid_lap, last_completed = _get_driver_state_at_time(drv_states, current_session_time)
+        drv_states_at_time[drv_num] = (state, is_mid_lap, last_completed)
+
+        if state is None:
+            continue
+
+        # Lap best
+        lap_state = last_completed if is_mid_lap else state
+        if lap_state:
+            val = lap_state['lapTime']['bestLap'].get('value')
+            if val is not None and (overall_best_lap_val is None or val < overall_best_lap_val):
+                overall_best_lap_val = val
+
+        # Sector 1
+        s1_state = state if (state['sectorEndSeconds'][0] is not None and state['sectorEndSeconds'][0] <= current_session_time) else last_completed
+        if s1_state:
+            val = s1_state['sectors'][0]['sectorBest'].get('value')
+            if val is not None and (overall_best_s1_val is None or val < overall_best_s1_val):
+                overall_best_s1_val = val
+
+        # Sector 2
+        s2_state = state if (state['sectorEndSeconds'][1] is not None and state['sectorEndSeconds'][1] <= current_session_time) else last_completed
+        if s2_state:
+            val = s2_state['sectors'][1]['sectorBest'].get('value')
+            if val is not None and (overall_best_s2_val is None or val < overall_best_s2_val):
+                overall_best_s2_val = val
+
+        # Sector 3
+        s3_state = state if (state['sectorEndSeconds'][2] is not None and state['sectorEndSeconds'][2] <= current_session_time) else last_completed
+        if s3_state:
+            val = s3_state['sectors'][2]['sectorBest'].get('value')
+            if val is not None and (overall_best_s3_val is None or val < overall_best_s3_val):
+                overall_best_s3_val = val
+
+
     # ─── Driver results (position, lap time, tire, etc.) ───
     results = []
     current_lap = 0
 
     for drv_num in driver_info_map.keys():
-        drv_states = driver_lap_states.get(drv_num, [])
-        state, is_mid_lap, last_completed = _get_driver_state_at_time(drv_states, current_session_time)
+        state, is_mid_lap, last_completed = drv_states_at_time[drv_num]
 
         if state is None:
             # Driver hasn't started yet — use grid position and first lap tire info
             grid_pos = grid_positions.get(drv_num, 99)
             first_compound = 'UNKNOWN'
             first_tyre_life = 0
+            drv_states = driver_lap_states.get(drv_num, [])
             if drv_states:
                 first_compound = drv_states[0].get('compound', 'UNKNOWN')
                 first_tyre_life = drv_states[0].get('tyreLife', 0)
@@ -842,36 +880,91 @@ def _build_snapshot(t: int, current_session_time: float,
 
         # Build sector data: for mid-lap, show sector times as they become available
         sectors_data = []
+        overall_best_s_vals = [overall_best_s1_val, overall_best_s2_val, overall_best_s3_val]
         for s_idx in range(3):
             sector = state['sectors'][s_idx]
             sector_end = state['sectorEndSeconds'][s_idx]
 
             if is_mid_lap and (sector_end is None or sector_end > current_session_time):
-                # This sector hasn't been completed yet during mid-lap — show blank
-                sectors_data.append({
-                    'sectorLast': {
-                        'sectorTime': '-- ---',
-                        'previousSectorTime': '-- ---',
-                        'overallFastest': False,
+                # This sector hasn't been completed yet during mid-lap
+                if last_completed:
+                    s_data = {
+                        'sectorLast': {
+                            'sectorTime': '-- ---',
+                            'previousSectorTime': '-- ---',
+                            'personalFastest': False,
+                        },
+                        'sectorBest': dict(last_completed['sectors'][s_idx]['sectorBest']),
+                        'segments': sector['segments'],
+                    }
+                else:
+                    s_data = {
+                        'sectorLast': {
+                            'sectorTime': '-- ---',
+                            'previousSectorTime': '-- ---',
+                            'personalFastest': False,
+                        },
+                        'sectorBest': {
+                            'sectorTime': '-- ---',
+                            'previousSectorTime': '-- ---',
+                            'personalFastest': False,
+                        },
+                        'segments': sector['segments'],
+                    }
+            else:
+                s_data = {
+                    'sectorLast': dict(sector['sectorLast']),
+                    'sectorBest': dict(sector['sectorBest']),
+                    'segments': sector['segments'],
+                }
+
+            # Compute overallFastest flag
+            sl_val = s_data['sectorLast'].get('value')
+            sb_val = s_data['sectorBest'].get('value')
+            
+            s_data['sectorLast']['overallFastest'] = (sl_val is not None and overall_best_s_vals[s_idx] is not None and sl_val == overall_best_s_vals[s_idx])
+            s_data['sectorBest']['overallFastest'] = (sb_val is not None and overall_best_s_vals[s_idx] is not None and sb_val == overall_best_s_vals[s_idx])
+            
+            # clean up value key
+            s_data['sectorLast'].pop('value', None)
+            s_data['sectorBest'].pop('value', None)
+
+            sectors_data.append(s_data)
+
+        # For mid-lap, lap time hasn't been set yet
+        if is_mid_lap:
+            if last_completed:
+                lap_time_data = {
+                    'lastLap': dict(last_completed['lapTime']['lastLap']),
+                    'bestLap': dict(last_completed['lapTime']['bestLap']),
+                }
+            else:
+                lap_time_data = {
+                    'lastLap': {
+                        'lapTime': '-- ---',
                         'personalFastest': False,
                     },
-                    'sectorBest': sector['sectorBest'],
-                    'segments': sector['segments'],
-                })
-            else:
-                sectors_data.append(sector)
-
-        # For mid-lap, lap time hasn't been set yet — show blank for lastLap
-        lap_time_data = state['lapTime']
-        if is_mid_lap:
+                    'bestLap': {
+                        'lapTime': '-- ---',
+                        'personalFastest': False,
+                    },
+                }
+        else:
             lap_time_data = {
-                'lastLap': {
-                    'lapTime': '-- ---',
-                    'overallFastest': False,
-                    'personalFastest': False,
-                },
-                'bestLap': state['lapTime']['bestLap'],
+                'lastLap': dict(state['lapTime']['lastLap']),
+                'bestLap': dict(state['lapTime']['bestLap']),
             }
+
+        # Compute overallFastest flag
+        l_val = lap_time_data['lastLap'].get('value')
+        lap_time_data['lastLap']['overallFastest'] = (l_val is not None and overall_best_lap_val is not None and l_val == overall_best_lap_val)
+
+        b_val = lap_time_data['bestLap'].get('value')
+        lap_time_data['bestLap']['overallFastest'] = (b_val is not None and overall_best_lap_val is not None and b_val == overall_best_lap_val)
+
+        # clean up value key
+        lap_time_data['lastLap'].pop('value', None)
+        lap_time_data['bestLap'].pop('value', None)
 
         def _format_gap_val(val):
             import re
