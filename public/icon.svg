@@ -7,13 +7,13 @@
    viewBox="0 0 67.733332 67.733333"
    version="1.1"
    id="svg1"
-   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
+   inkscape:version="1.4.4 (dcaf3e7, 2026-05-05)"
    sodipodi:docname="icon.svg"
+   xml:space="preserve"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
-   xmlns:svg="http://www.w3.org/2000/svg">
-  <sodipodi:namedview
+   xmlns:svg="http://www.w3.org/2000/svg"><sodipodi:namedview
      id="namedview1"
      pagecolor="#ffffff"
      bordercolor="#000000"
@@ -24,17 +24,15 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
      inkscape:zoom="1.3077722"
-     inkscape:cx="158.66678"
-     inkscape:cy="205.69332"
-     inkscape:window-width="1600"
-     inkscape:window-height="978"
-     inkscape:window-x="-6"
-     inkscape:window-y="-6"
+     inkscape:cx="46.644209"
+     inkscape:cy="97.876373"
+     inkscape:window-width="2560"
+     inkscape:window-height="1411"
+     inkscape:window-x="3191"
+     inkscape:window-y="546"
      inkscape:window-maximized="1"
-     inkscape:current-layer="layer1" />
-  <defs
-     id="defs1">
-    <inkscape:path-effect
+     inkscape:current-layer="layer1" /><defs
+     id="defs1"><inkscape:path-effect
        effect="fillet_chamfer"
        id="path-effect2"
        is_visible="true"
@@ -50,13 +48,10 @@
        apply_no_radius="true"
        apply_with_radius="true"
        only_selected="false"
-       hide_knots="false" />
-  </defs>
-  <g
+       hide_knots="false" /></defs><g
      inkscape:label="圖層 1"
      inkscape:groupmode="layer"
-     id="layer1">
-    <path
+     id="layer1"><path
        style="fill:#3388ff;fill-opacity:1;stroke-width:1.0495"
        id="rect1"
        width="69.007004"
@@ -69,31 +64,67 @@
        transform="matrix(0.98154288,0,0,1.0000001,-1.985819,-0.80926434)"
        rx="12.22565"
        ry="11.999999"
-       inkscape:label="Base" />
-    <text
+       inkscape:label="Base"
+       sodipodi:insensitive="true" /><text
        xml:space="preserve"
-       style="font-weight:bold;font-size:20.353px;font-family:Verdana;-inkscape-font-specification:'Verdana, Bold';text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;white-space:pre;inline-size:22.22;display:inline;fill:#3388ff;fill-opacity:1;stroke-width:1"
+       style="font-style:italic;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:20.353px;font-family:Verdana;-inkscape-font-specification:'Verdana, Bold Italic';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;white-space:pre;inline-size:22.22;display:inline;fill:#ffffff;fill-opacity:1;stroke-width:1"
        x="23.468664"
        y="26.908037"
        id="text2"
-       transform="matrix(1.9450232,0,0,1.6804465,-31.786752,-10.014522)"
+       transform="matrix(2.0695189,0,0,1.7880073,-39.706087,-8.1421233)"
        inkscape:label="F1"><tspan
          x="23.468664"
          y="26.908037"
-         id="tspan4"><tspan
-           style="font-weight:900;font-family:'Segoe UI';-inkscape-font-specification:'Segoe UI, Heavy';fill:#ffffff"
-           id="tspan2">F1</tspan></tspan></text>
-    <text
+         id="tspan2">F</tspan></text><text
        xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:900;font-stretch:normal;font-size:20.6153px;font-family:'Segoe UI';-inkscape-font-specification:'Segoe UI, Heavy';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#ffffff;fill-opacity:1;stroke-width:0.560259"
-       x="3.4520545"
-       y="55.839233"
+       style="font-style:normal;font-variant:normal;font-weight:900;font-stretch:normal;font-size:8.50533px;font-family:'Segoe UI';-inkscape-font-specification:'Segoe UI, Heavy';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#ffffff;fill-opacity:1;stroke-width:0.231148"
+       x="4.176928"
+       y="53.193939"
        id="text6"
-       inkscape:label="DATA"><tspan
+       inkscape:label="LABORATORY"><tspan
          sodipodi:role="line"
-         id="tspan6"
-         style="font-style:normal;font-variant:normal;font-weight:900;font-stretch:normal;font-size:20.6153px;font-family:'Segoe UI';-inkscape-font-specification:'Segoe UI, Heavy';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:0.560259"
-         x="3.4520545"
-         y="55.839233">DATA</tspan></text>
-  </g>
-</svg>
+         id="tspan1"
+         x="4.176928"
+         y="53.193939"
+         style="stroke-width:0.231148">LABORATORY</tspan></text><g
+       style="fill:#ffffff;fill-opacity:1"
+       id="g7"
+       transform="matrix(0.0660045,0,0,0.0660045,29.50206,6.0321058)"
+       inkscape:label="tube"><g
+         id="g2"
+         style="fill:#ffffff;fill-opacity:1">
+	<g
+   id="g1"
+   style="fill:#ffffff;fill-opacity:1">
+		<path
+   d="m 341.151,114.489 c -0.632,0 -166.892,0 -170.302,0 -10.12,0 -18.325,8.205 -18.325,18.325 0,10.12 8.205,18.325 18.325,18.325 h 8.443 c 0,11.304 0,270.855 0,284.153 0,42.298 34.411,76.708 76.708,76.708 42.308,0 76.708,-34.214 76.708,-76.708 0,-12.501 0,-271.856 0,-284.153 h 8.443 c 10.12,0 18.325,-8.205 18.325,-18.325 0,-10.12 -8.205,-18.325 -18.325,-18.325 z M 256,442.392 c -14.291,0 -25.877,-11.585 -25.877,-25.877 0,-14.291 11.585,-25.877 25.877,-25.877 14.291,0 25.877,11.585 25.877,25.877 0,14.291 -11.586,25.877 -25.877,25.877 z m -13.334,-86.966 c 0,-7.365 5.97,-13.334 13.334,-13.334 7.364,-10e-4 13.334,5.969 13.334,13.334 0,7.364 -5.97,13.334 -13.334,13.334 -7.364,0 -13.334,-5.97 -13.334,-13.334 z m 53.392,-95.76 h -80.116 v -31.184 h 24.306 c 10.12,0 18.325,-8.205 18.325,-18.325 0,-10.12 -8.205,-18.325 -18.325,-18.325 h -24.306 v -40.693 h 80.116 z"
+   id="path1"
+   style="fill:#ffffff;fill-opacity:1" />
+	</g>
+</g><g
+         id="g4"
+         style="fill:#ffffff;fill-opacity:1">
+	<g
+   id="g3"
+   style="fill:#ffffff;fill-opacity:1">
+		<circle
+   cx="289.936"
+   cy="61.193001"
+   r="27.622999"
+   id="circle2"
+   style="fill:#ffffff;fill-opacity:1" />
+	</g>
+</g><g
+         id="g6"
+         style="fill:#ffffff;fill-opacity:1">
+	<g
+   id="g5"
+   style="fill:#ffffff;fill-opacity:1">
+		<circle
+   cx="222.061"
+   cy="20.938999"
+   r="20.938999"
+   id="circle4"
+   style="fill:#ffffff;fill-opacity:1" />
+	</g>
+</g></g></g></svg>

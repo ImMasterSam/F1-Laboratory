@@ -3,7 +3,7 @@ import NavItem from "./NavItem";
 import '../../CSS/SideNav.css'
 
 import { AiFillHome } from "react-icons/ai";
-import { BsBroadcast } from "react-icons/bs";
+import { MdReplay } from "react-icons/md";
 import { FaTrophy } from "react-icons/fa";
 import { RiCalendarScheduleFill, RiTeamFill } from "react-icons/ri";
 import { LuPanelLeftOpen, LuPanelRightOpen } from "react-icons/lu";
@@ -17,9 +17,9 @@ const NavItems = [
     index: 0
   },
   { 
-    label: 'Live Timing',
+    label: 'Replay',
     href: '/livetiming',
-    icon: <BsBroadcast />,
+    icon: <MdReplay />,
     index: 1
   },
   { 
