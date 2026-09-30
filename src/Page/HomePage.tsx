@@ -53,10 +53,9 @@ function HomePage() {
           
           <div className="link-card" onClick={() => navigate('/livetiming')}>
             <div className="card-header">
-              <h2>Live Timing</h2>
-              <span className="live-indicator"></span> {/* 紅色閃爍點 */}
+              <h2>Session Replay</h2>
             </div>
-            <p>Real-time lap times, track weather, and telemetry data.</p>
+            <p>Historical race replays, lap times, and telemetry data.</p>
           </div>
 
           <div className="link-card" onClick={() => navigate('/schedule')}>
