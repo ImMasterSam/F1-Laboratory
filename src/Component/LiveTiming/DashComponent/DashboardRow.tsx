@@ -35,7 +35,7 @@ function DashboardRow({ result, intervalTop, handleGapTop }: Props) {
     <Tire tire={result.tire}/>
     <Gap gap={result.Gap} leading={result.position == 1} intervalTop={intervalTop} handleGapTop={handleGapTop}/>
     <LapTime lapTime={result.lapTime}/>
-    {result.sectors.map((sector, index) => {
+    {result.sectors?.map((sector, index) => {
       return <Sector sector={sector} key={index}/>
     })}
   </div>

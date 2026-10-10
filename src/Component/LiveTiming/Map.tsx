@@ -13,11 +13,16 @@ type Graph_Props = {
 
 function Graph({ corners, trackPath, driverPos, rotation }: Graph_Props) {
 
+  // Guard: skip rendering if trackPath is empty or missing
+  if (!trackPath || trackPath.length === 0) {
+    return <svg viewBox="0 0 600 400" style={{ width: '100%', height: '100%' }} />
+  }
+
   // Rotate The Graph First
   const xs = trackPath.map(p => p[0])
   const ys = trackPath.map(p => p[1])
   const px = (Math.max(...xs) - Math.min(...xs)) / 2
-  const py = (Math.max(...ys) -  Math.min(...ys)) / 2
+  const py = (Math.max(...ys) - Math.min(...ys)) / 2
 
   const rad = (deg: number) => deg * (Math.PI / 180);
   const rotate = (x: number, y: number): [number, number] => {
@@ -66,14 +71,14 @@ function Graph({ corners, trackPath, driverPos, rotation }: Graph_Props) {
   const shiftPoints = (x: number, y: number, a: number, dis: number): [number, number] => {
     const c = Math.cos(rad(a + 90));
     const s = Math.sin(rad(a + 90));
-    
+
     const newX = x + c * dis;
     const newY = y - s * dis;
 
     return [newX, newY]
   }
 
-  return <svg viewBox="0 0 600 400" style={{ width: '100%', height: '100%'}}>
+  return <svg viewBox="0 0 600 400" style={{ width: '100%', height: '100%' }}>
     <path
       d={points}
       fill="none"
@@ -103,11 +108,11 @@ function Graph({ corners, trackPath, driverPos, rotation }: Graph_Props) {
       const [cx, cy] = norm(rx, ry)
       return (
         <g key={i}
-           style={{
-             transform: `translate(${cx}px, ${cy}px)`,
-             transition: "transform 1.2s linear"
-           }}>
-          <circle 
+          style={{
+            transform: `translate(${cx}px, ${cy}px)`,
+            transition: "transform 1.2s linear"
+          }}>
+          <circle
             r={6}
             fill={`#${driverPos.driver.driverTeamColor}`}
           />
@@ -123,13 +128,13 @@ function Graph({ corners, trackPath, driverPos, rotation }: Graph_Props) {
       );
     })}
   </svg>
-  
+
 }
 
 function Map({ circuit }: Map_Props) {
   return <div className="map">
     <h2>{circuit.trackName}</h2>
-    <Graph corners={circuit.corners} trackPath={circuit.trackPath} driverPos={circuit.driverPos} rotation={circuit.rotation}/>
+    <Graph corners={circuit.corners} trackPath={circuit.trackPath} driverPos={circuit.driverPos} rotation={circuit.rotation} />
   </div>
 }
 

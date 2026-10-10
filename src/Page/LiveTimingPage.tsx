@@ -168,7 +168,7 @@ function LiveTimingPage() {
           </div>
           <div className='message-info'>
             {data.raceControlMessages && <RaceControl raceControlMessages={data.raceControlMessages} />}
-            {data.teamRadio.length ? <Radio teamRadio={data.teamRadio} /> : <></>}
+            {data.teamRadio?.length ? <Radio teamRadio={data.teamRadio} /> : <></>}
           </div>
         </div>
       </div>
